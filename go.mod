@@ -1,4 +1,4 @@
-module github.com/sentadmedia/elf
+module github.com/SentadMedia/elf
 
 go 1.13
 

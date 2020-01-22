@@ -4,8 +4,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/SentadMedia/elf/fw"
 	"github.com/joho/godotenv"
-	"github.com/sentadmedia/elf/fw"
 )
 
 var _ fw.Environment = (*GoDotEnv)(nil)
