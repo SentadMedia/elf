@@ -84,9 +84,9 @@ func (local Local) log(level fw.LogLevelName, message string) {
 			now,
 			message,
 		)
+		fmt.Printf("%v\n", err)
 		return
 	}
-	fmt.Printf("%v\n", err)
 	_, _ = fmt.Fprintf(
 		local.stdout,
 		"[%s] [%s] %s line %d at %s %s\n",
