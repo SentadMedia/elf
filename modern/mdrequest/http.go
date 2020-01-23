@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SentadMedia/elf/fw"
+	"github.com/sentadmedia/elf/fw"
 )
 
 var _ fw.HTTPRequest = (*HTTP)(nil)

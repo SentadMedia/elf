@@ -3,7 +3,7 @@ package mdservice
 import (
 	"fmt"
 
-	"github.com/SentadMedia/elf/fw"
+	"github.com/sentadmedia/elf/fw"
 )
 
 type Service struct {

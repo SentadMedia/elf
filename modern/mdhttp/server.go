@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/SentadMedia/elf/fw"
-	"github.com/SentadMedia/elf/modern/mdio"
+	"github.com/sentadmedia/elf/fw"
+	"github.com/sentadmedia/elf/modern/mdio"
 )
 
 type Server struct {

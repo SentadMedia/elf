@@ -4,7 +4,7 @@ import (
 	"errors"
 	"runtime"
 
-	"github.com/SentadMedia/elf/fw"
+	"github.com/sentadmedia/elf/fw"
 )
 
 var _ fw.ProgramRuntime = (*BuildIn)(nil)

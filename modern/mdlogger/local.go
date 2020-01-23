@@ -3,7 +3,7 @@ package mdlogger
 import (
 	"fmt"
 
-	"github.com/SentadMedia/elf/fw"
+	"github.com/sentadmedia/elf/fw"
 )
 
 var _ fw.Logger = (*Local)(nil)

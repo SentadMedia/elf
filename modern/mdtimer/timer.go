@@ -3,7 +3,7 @@ package mdtimer
 import (
 	"time"
 
-	"github.com/SentadMedia/elf/fw"
+	"github.com/sentadmedia/elf/fw"
 )
 
 type Timer struct{}

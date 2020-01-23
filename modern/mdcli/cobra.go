@@ -3,7 +3,7 @@ package mdcli
 import (
 	"errors"
 
-	"github.com/SentadMedia/elf/fw"
+	"github.com/sentadmedia/elf/fw"
 	"github.com/spf13/cobra"
 )
 

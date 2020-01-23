@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/SentadMedia/elf/fw"
+	"github.com/sentadmedia/elf/fw"
 
 	uuid "github.com/satori/go.uuid"
 )

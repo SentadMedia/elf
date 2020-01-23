@@ -3,7 +3,7 @@ package mdcrypto
 import (
 	"errors"
 
-	"github.com/SentadMedia/elf/fw"
+	"github.com/sentadmedia/elf/fw"
 
 	"fmt"
 
