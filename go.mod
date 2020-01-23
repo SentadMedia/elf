@@ -3,6 +3,7 @@ module github.com/SentadMedia/elf
 go 1.13
 
 require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/graph-gophers/graphql-go v0.0.0-20191115155744-f33e81362277
 	github.com/joho/godotenv v1.3.0
 	github.com/kr/pretty v0.1.0 // indirect
