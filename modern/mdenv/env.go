@@ -1,7 +1,6 @@
 package mdenv
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -16,7 +15,6 @@ type GoDotEnv struct {
 
 func (g GoDotEnv) GetEnv(key string, defaultValue string) string {
 	val := os.Getenv(key)
-	fmt.Printf("Trying to gen environement varyable for %s", key)
 	if val == "" {
 		return defaultValue
 	}
