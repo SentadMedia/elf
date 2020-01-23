@@ -54,6 +54,8 @@ func NewRelayHandler(g fw.GraphQLAPI) RelayHandler {
 		graphql.UseStringDescriptions(),
 	)
 	return RelayHandler{handler: relay.Handler{
-		Schema: schema,
+		Schema:   schema,
+		Pretty:   true,
+		GraphiQL: true,
 	}}
 }

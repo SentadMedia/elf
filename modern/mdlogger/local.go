@@ -74,7 +74,7 @@ func (local Local) Trace(message string) {
 
 func (local Local) log(level fw.LogLevelName, message string) {
 	now := local.now()
-	caller, err := local.programRuntime.Caller(2)
+	_, err := local.programRuntime.Caller(2)
 	if err != nil {
 		_, _ = fmt.Fprintf(
 			local.stdout,
@@ -84,17 +84,17 @@ func (local Local) log(level fw.LogLevelName, message string) {
 			now,
 			message,
 		)
-		fmt.Printf("%v\n", err)
 		return
 	}
 	_, _ = fmt.Fprintf(
 		local.stdout,
-		"[%s] [%s] %s line %d at %s %s\n",
+		// "[%s] [%s] %s line %d at %s %s\n",
+		"[%s] [%s] %s %s\n",
 		local.prefix,
 		level,
 		now,
-		caller.LineNumber,
-		caller.FullFilename,
+		// caller.LineNumber,
+		// caller.FullFilename,
 		message,
 	)
 }
