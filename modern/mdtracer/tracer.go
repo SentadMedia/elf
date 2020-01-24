@@ -1,7 +1,7 @@
 package mdtracer
 
 import (
-	"log"
+	"fmt"
 	"time"
 
 	"github.com/sentadmedia/elf/fw"
@@ -9,42 +9,51 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-type Local struct{}
+var _ fw.Tracer = (*Local)(nil)
+
+type Local struct {
+	logger fw.Logger
+}
 
 type LocalTrace struct {
-	id    string
-	name  string
-	start time.Time
+	id     string
+	name   string
+	start  time.Time
+	logger fw.Logger
 }
 
 func (t LocalTrace) Next(name string) fw.Segment {
 	start := time.Now()
-	log.Printf("[Trace Start id=%s name=%s startAt=%v]", t.id, name, start)
+	t.logger.Trace(fmt.Sprintf("[Trace Start id=%s name=%s startAt=%v]", t.id, name, start))
+	// log.Printf("[Trace Start id=%s name=%s startAt=%v]", t.id, name, start)
 	return LocalTrace{
-		id:    t.id,
-		name:  name,
-		start: start,
+		id:     t.id,
+		name:   name,
+		start:  start,
+		logger: t.logger,
 	}
 }
 
 func (t LocalTrace) End() {
 	end := time.Now()
 	diff := end.Sub(t.start)
-	log.Printf("[Trace End   id=%s name=%s endAt=%v duration=%v]", t.id, t.name, end, diff)
+	t.logger.Trace(fmt.Sprintf("[Trace End   id=%s name=%s endAt=%v duration=%v]", t.id, t.name, end, diff))
+	// log.Printf()
 }
 
-func (Local) BeginTrace(name string) fw.Segment {
+func (l Local) BeginTrace(name string) fw.Segment {
 	id := uuid.NewV4().String()
 	start := time.Now()
-
-	log.Printf("[Trace Start id=%s name=%s startAt=%v]", id, name, start)
+	l.logger.Trace(fmt.Sprintf("[Trace Start id=%s name=%s startAt=%v]", id, name, start))
+	// log.Printf()
 	return LocalTrace{
-		id:    id,
-		name:  name,
-		start: start,
+		id:     id,
+		name:   name,
+		start:  start,
+		logger: l.logger,
 	}
 }
 
-func NewLocal() fw.Tracer {
-	return Local{}
+func NewLocal(logger fw.Logger) fw.Tracer {
+	return Local{logger: logger}
 }
