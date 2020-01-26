@@ -1,6 +1,7 @@
 package mdgraphql
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/graph-gophers/graphql-go"
@@ -29,12 +30,20 @@ func NewGraphGophers(graphqlPath string, logger fw.Logger, tracer fw.Tracer, g f
 	relayHandler := NewRelayHandler(g)
 
 	server := mdhttp.NewServer(logger, tracer)
-	server.HandleFunc(graphqlPath, relayHandler)
+	server.HandleFunc(graphqlPath, testMiddleWare(relayHandler))
 
 	return GraphGophers{
 		logger: logger,
 		server: &server,
 	}
+}
+
+func testMiddleWare(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, "Soufiane", "KAWTAR")))
+	})
 }
 
 var _ http.Handler = (*RelayHandler)(nil)
