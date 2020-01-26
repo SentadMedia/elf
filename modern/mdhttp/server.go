@@ -42,7 +42,7 @@ func (s Server) HandleFunc(pattern string, handler http.Handler) {
 
 		w = enableCors(w)
 		r.Body = mdio.Tap(r.Body, func(body string) {
-			s.logger.Info(fmt.Sprintf("HTTP: url=%s host=%s method=%s body=%s", r.URL, r.Host, r.Method, body))
+			s.logger.Info(fmt.Sprintf("HTTP: url=%s host=%s client=%s method=%s body=%s context=%+v", r.URL, r.Host, GetIP(r), r.Method, body, r.Context()))
 		})
 		handler.ServeHTTP(w, r)
 	})
@@ -59,6 +59,16 @@ func setupPreFlight(w http.ResponseWriter) http.ResponseWriter {
 func enableCors(w http.ResponseWriter) http.ResponseWriter {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	return w
+}
+
+// GetIP gets a requests IP address by reading off the forwarded-for
+// header (for proxies) and falls back to use the remote address.
+func GetIP(r *http.Request) string {
+	forwarded := r.Header.Get("X-FORWARDED-FOR")
+	if forwarded != "" {
+		return forwarded
+	}
+	return r.RemoteAddr
 }
 
 func NewServer(logger fw.Logger, tracer fw.Tracer) Server {
