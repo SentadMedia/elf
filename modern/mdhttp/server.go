@@ -42,7 +42,7 @@ func (s Server) HandleFunc(pattern string, handler http.Handler) {
 
 		w = enableCors(w)
 		r.Body = mdio.Tap(r.Body, func(body string) {
-			s.logger.Info(fmt.Sprintf("HTTP: url=%s host=%s client=%s method=%s body=%s context=%+v", r.URL, r.Host, GetIP(r), r.Method, body, r.Context()))
+			s.logger.Info(fmt.Sprintf("HTTP: url=%s host=%s client=%s method=%s body=%s", r.URL, r.Host, GetIP(r), r.Method, body))
 		})
 		handler.ServeHTTP(w, r)
 	})
