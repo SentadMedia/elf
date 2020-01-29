@@ -83,16 +83,17 @@ func middlewareOne(next RelayHandler) http.Handler {
 		}
 
 		if strings.HasPrefix(params.Query, "mutation") && strings.Contains(params.Query, "createAccount") {
-			fmt.Print(fmt.Sprintf("Query=%s", params.Query))
 			ctx := r.Context()
 			response := next.handler.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
 			responseJSON, err := json.Marshal(response)
+			fmt.Print(fmt.Sprintf("Query=%s response=%s err=%s", params.Query, responseJSON, err))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
 			w.Write(responseJSON)
+			return
 		}
 
 		r.Body = bd2
