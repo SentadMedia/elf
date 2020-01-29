@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/graph-gophers/graphql-go"
 	"github.com/graph-gophers/graphql-go/relay"
@@ -64,7 +65,7 @@ func NewRelayHandler(g fw.GraphQLAPI, logger fw.Logger) RelayHandler {
 	}
 }
 
-func middlewareOne(next http.Handler) http.Handler {
+func middlewareOne(next RelayHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var params struct {
 			Query         string                 `json:"query"`
@@ -73,14 +74,28 @@ func middlewareOne(next http.Handler) http.Handler {
 		}
 
 		buf, _ := ioutil.ReadAll(r.Body)
+		bd1 := ioutil.NopCloser(bytes.NewBuffer(buf))
+		bd2 := ioutil.NopCloser(bytes.NewBuffer(buf))
 
-		if err := json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(buf))).Decode(&params); err != nil {
+		if err := json.NewDecoder(bd1).Decode(&params); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		fmt.Print(fmt.Sprintf("params=%+v", params))
-		r.Body = ioutil.NopCloser(bytes.NewBuffer(buf))
+		if strings.HasPrefix(params.Query, "mutation") && strings.Contains(params.Query, "createAccount") {
+			fmt.Print(fmt.Sprintf("Query=%s", params.Query))
+			ctx := r.Context()
+			response := next.handler.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
+			responseJSON, err := json.Marshal(response)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.Write(responseJSON)
+		}
+
+		r.Body = bd2
 		next.ServeHTTP(w, r)
 	})
 }
