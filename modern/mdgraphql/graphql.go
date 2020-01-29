@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/graph-gophers/graphql-go"
-	"github.com/graph-gophers/graphql-go/log"
 	"github.com/graph-gophers/graphql-go/relay"
 	"github.com/sentadmedia/elf/fw"
 	"github.com/sentadmedia/elf/modern/mdhttp"
@@ -54,7 +53,7 @@ func NewRelayHandler(g fw.GraphQLAPI, logger fw.Logger) RelayHandler {
 		g.GetSchema(),
 		g.GetResolver(),
 		graphql.UseStringDescriptions(),
-		graphql.Logger(logger.(log.Logger)),
+		// graphql.Logger(logger.(log.Logger)),
 	)
 	return RelayHandler{
 		handler: relay.Handler{
