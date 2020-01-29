@@ -1,8 +1,10 @@
 package mdgraphql
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/graph-gophers/graphql-go"
@@ -69,12 +71,16 @@ func middlewareOne(next http.Handler) http.Handler {
 			OperationName string                 `json:"operationName"`
 			Variables     map[string]interface{} `json:"variables"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+
+		buf, _ := ioutil.ReadAll(r.Body)
+
+		if err := json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(buf))).Decode(&params); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		fmt.Print(fmt.Sprintf("params=%+v", params))
+		r.Body = ioutil.NopCloser(bytes.NewBuffer(buf))
 		next.ServeHTTP(w, r)
 	})
 }
