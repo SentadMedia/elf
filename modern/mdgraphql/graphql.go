@@ -77,6 +77,8 @@ func NewRelayHandler(g fw.GraphQLAPI, logger fw.Logger) RelayHandler {
 func middlewareOne(next RelayHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, _ := store.Get(r, cookieName)
+		fmt.Print(fmt.Sprintf("Session Before=%+v\n", session))
+
 		var params struct {
 			Query         string                 `json:"query"`
 			OperationName string                 `json:"operationName"`
@@ -101,10 +103,11 @@ func middlewareOne(next RelayHandler) http.Handler {
 				return
 			}
 
-			w.Write(responseJSON)
 			session.Values["authenticated"] = true
 			session.Save(r, w)
-			fmt.Print(fmt.Sprintf("Session=%+v\n", session))
+			fmt.Print(fmt.Sprintf("Session After=%+v\n", session))
+
+			w.Write(responseJSON)
 			return
 		}
 
