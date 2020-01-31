@@ -96,18 +96,17 @@ func middlewareOne(next RelayHandler) http.Handler {
 
 		if strings.HasPrefix(params.Query, "mutation") && strings.Contains(params.Query, "signIn") {
 			ctx := r.Context()
-			response := next.handler.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
-			responseJSON, err := json.Marshal(response)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-
 			session.Values["authenticated"] = true
 			if err := session.Save(r, w); err != nil {
 				fmt.Print(fmt.Sprintf("ERROR Saving session. err=%s\n", err.Error()))
 			} else {
 				fmt.Print(fmt.Sprintf("Session After=%+v\n", session))
+			}
+			response := next.handler.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
+			responseJSON, err := json.Marshal(response)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
 			}
 			w.Write(responseJSON)
 			return
