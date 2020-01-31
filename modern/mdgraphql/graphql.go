@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gorilla/sessions"
 	"github.com/graph-gophers/graphql-go"
 	"github.com/graph-gophers/graphql-go/relay"
 	"github.com/sentadmedia/elf/fw"
@@ -15,6 +16,14 @@ import (
 )
 
 var _ fw.Server = (*GraphGophers)(nil)
+
+var (
+	// key must be 16, 24 or 32 bytes long (AES-128, AES-192 or AES-256)
+	authKey       = []byte("CBD8DC165293A3F32084DACFF2B0D1522095AD3741919D82")
+	encryptionKey = []byte("A7A2F5A4707904314079C61EF6E49CEE")
+	store         = sessions.NewCookieStore(authKey, encryptionKey)
+	cookieName    = "SANTA_SESSION"
+)
 
 type GraphGophers struct {
 	logger fw.Logger
@@ -67,6 +76,7 @@ func NewRelayHandler(g fw.GraphQLAPI, logger fw.Logger) RelayHandler {
 
 func middlewareOne(next RelayHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		session, _ := store.Get(r, cookieName)
 		var params struct {
 			Query         string                 `json:"query"`
 			OperationName string                 `json:"operationName"`
@@ -86,13 +96,15 @@ func middlewareOne(next RelayHandler) http.Handler {
 			ctx := r.Context()
 			response := next.handler.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
 			responseJSON, err := json.Marshal(response)
-			fmt.Print(fmt.Sprintf("params=%+v response=%s err=%+v\n", params, responseJSON, err))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
 			w.Write(responseJSON)
+			session.Values["authenticated"] = true
+			session.Save(r, w)
+			fmt.Print(fmt.Sprintf("Session=%+v\n", session))
 			return
 		}
 
