@@ -34,6 +34,9 @@ func NewGraphGophers(graphqlPath string, logger fw.Logger, tracer fw.Tracer, g f
 
 	server := mdhttp.NewServer(logger, tracer)
 	server.HandleFunc(graphqlPath, middlewareOne(relayHandler))
+	server.HandleFunc("/graphiql", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "graphiql.html")
+	}))
 
 	return GraphGophers{
 		logger: logger,
@@ -86,7 +89,7 @@ func middlewareOne(next RelayHandler) http.Handler {
 			ctx := r.Context()
 			response := next.handler.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
 			responseJSON, err := json.Marshal(response)
-			fmt.Print(fmt.Sprintf("Query=%s response=%s err=%s", params.Query, responseJSON, err))
+			fmt.Print(fmt.Sprintf("Query=%s response=%s err=%s", params.Query, responseJSON, err.Error()))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
