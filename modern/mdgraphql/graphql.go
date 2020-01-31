@@ -104,9 +104,11 @@ func middlewareOne(next RelayHandler) http.Handler {
 			}
 
 			session.Values["authenticated"] = true
-			session.Save(r, w)
-			fmt.Print(fmt.Sprintf("Session After=%+v\n", session))
-
+			if err := session.Save(r, w); err != nil {
+				fmt.Print(fmt.Sprintf("ERROR Saving session. err=%s\n", err.Error()))
+			} else {
+				fmt.Print(fmt.Sprintf("Session After=%+v\n", session))
+			}
 			w.Write(responseJSON)
 			return
 		}
