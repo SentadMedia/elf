@@ -3,6 +3,7 @@ package mdhttp
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 
 	"github.com/sentadmedia/elf/fw"
@@ -42,7 +43,7 @@ func (s Server) HandleFunc(pattern string, handler http.Handler) {
 
 		w = enableCors(w)
 		r.Body = mdio.Tap(r.Body, func(body string) {
-			s.logger.Info(fmt.Sprintf("HTTP: url=%s host=%s client=%s method=%s body=%s", r.URL, r.Host, GetIP(r), r.Method, body))
+			s.logger.Info(fmt.Sprintf("HTTP: url=%s host=%s client=%s method=%s", r.URL, r.Host, GetIP(r), r.Method))
 		})
 		handler.ServeHTTP(w, r)
 	})
@@ -68,6 +69,10 @@ func GetIP(r *http.Request) string {
 	if forwarded != "" {
 		return forwarded
 	}
+	if splitted, _, err := net.SplitHostPort(r.RemoteAddr); err != nil {
+		return splitted
+	}
+
 	return r.RemoteAddr
 }
 
