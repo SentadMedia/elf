@@ -90,7 +90,7 @@ func NewRelayHandler(g fw.GraphQLAPI) http.Handler {
 func NewMiddleWareTest() Middleware {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Print("MiddleWare Test Star\nt")
+			fmt.Print("MiddleWare Test Start\n")
 			defer fmt.Print("MiddleWare Test End\n")
 			h.ServeHTTP(w, r)
 		})
@@ -108,13 +108,13 @@ func NewMiddleWareLog() Middleware {
 }
 
 func NewAuthMiddleWare(store sessions.Store) Middleware {
-	return func(h http.Handler) http.Handler {
+	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			h, ok := h.(*relay.Handler)
+			relayHandler, ok := handler.(*relay.Handler)
 			if !ok {
-				fmt.Printf("Unknown http handler. expected 'relay.Handler', got %T\n", h)
+				fmt.Printf("Unknown http handler. expected 'relay.Handler', got %T\n", handler)
 				// http.Error(w, err.Error(), http.StatusBadRequest)
-				h.ServeHTTP(w, r)
+				handler.ServeHTTP(w, r)
 				return
 			}
 
@@ -143,7 +143,7 @@ func NewAuthMiddleWare(store sessions.Store) Middleware {
 				} else {
 					fmt.Print(fmt.Sprintf("Session After=%+v\n", session))
 				}
-				response := h.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
+				response := relayHandler.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
 				responseJSON, err := json.Marshal(response)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -154,7 +154,7 @@ func NewAuthMiddleWare(store sessions.Store) Middleware {
 			}
 
 			r.Body = bd2
-			h.ServeHTTP(w, r)
+			relayHandler.ServeHTTP(w, r)
 		})
 	}
 
