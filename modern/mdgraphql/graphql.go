@@ -91,12 +91,12 @@ func NewMiddleWareLog(logger fw.Logger) Middleware {
 func NewAuthMiddleWare(store sessions.Store, logger fw.Logger) Middleware {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			relayHandler, ok := handler.(*RelayHandler)
-			if !ok {
-				logger.Warn(fmt.Sprintf("Skipping! Unknown http handler. got %T", relayHandler))
-				handler.ServeHTTP(w, r)
-				return
-			}
+			relayHandler := handler.(*RelayHandler)
+			// if !ok {
+			// 	handler.ServeHTTP(w, r)
+			// 	return
+			// }
+			logger.Warn(fmt.Sprintf("Skipping! Unknown http handler. got %T", relayHandler))
 
 			session, _ := store.Get(r, cookieName)
 			logger.Debug(fmt.Sprintf("Session Before=%+v", session))
