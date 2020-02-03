@@ -91,7 +91,7 @@ func NewMiddleWareLog(logger fw.Logger) Middleware {
 func NewAuthMiddleWare(store sessions.Store, logger fw.Logger) Middleware {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			relayHandler := handler.(*RelayHandler)
+			relayHandler := handler.(RelayHandler)
 			// if !ok {
 			// 	handler.ServeHTTP(w, r)
 			// 	return
