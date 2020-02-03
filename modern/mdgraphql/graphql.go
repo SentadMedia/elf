@@ -80,12 +80,12 @@ func NewMiddleWareLog(logger fw.Logger) Middleware {
 func NewAuthMiddleWare(store sessions.Store, logger fw.Logger) Middleware {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			relayHandler, ok := handler.(*relay.Handler)
-			if !ok {
-				logger.Warn(fmt.Sprintf("Skipping! Unknown http handler. expected '*relay.Handler', got %T (%+v)", handler, handler))
-				handler.ServeHTTP(w, r)
-				return
-			}
+			relayHandler := *handler.(*relay.Handler)
+			// if !ok {
+			// 	handler.ServeHTTP(w, r)
+			// 	return
+			// }
+			logger.Warn(fmt.Sprintf("Skipping! Unknown http handler. expected '*relay.Handler', got %T (%+v)", relayHandler, handler))
 
 			session, _ := store.Get(r, cookieName)
 			logger.Debug(fmt.Sprintf("Session Before=%+v", session))
