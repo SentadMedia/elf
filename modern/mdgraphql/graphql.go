@@ -48,7 +48,7 @@ func NewGraphGophers(graphqlPath string, logger fw.Logger, tracer fw.Tracer, g f
 	sessionStore := sessions.NewCookieStore(authKey, encryptionKey)
 	authMiddleWare := NewAuthMiddleWare(schema, sessionStore, logger)
 	logMiddleWare := NewMiddleWareLog(logger)
-	wrapped := MultipleMiddleware(rootHandler, authMiddleWare, logMiddleWare)
+	wrapped := MultipleMiddleware(rootHandler, logMiddleWare, authMiddleWare)
 
 	server := mdhttp.NewServer(logger, tracer)
 	server.HandleFunc(graphqlPath, wrapped)
