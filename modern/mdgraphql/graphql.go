@@ -41,7 +41,9 @@ func NewGraphGophers(graphqlPath string, logger fw.Logger, tracer fw.Tracer, g f
 	rootHandler := NewRelayHandler(g)
 	sessionStore := sessions.NewCookieStore(authKey, encryptionKey)
 	authMiddleWare := NewAuthMiddleWare(sessionStore)
-	wrapped := MultipleMiddleware(rootHandler, authMiddleWare)
+	testMiddleWare := NewMiddleWareTest()
+	logMiddleWare := NewMiddleWareLog()
+	wrapped := MultipleMiddleware(rootHandler, testMiddleWare, authMiddleWare, logMiddleWare)
 
 	server := mdhttp.NewServer(logger, tracer)
 	server.HandleFunc(graphqlPath, wrapped)
@@ -85,14 +87,34 @@ func NewRelayHandler(g fw.GraphQLAPI) http.Handler {
 	return &relay.Handler{schema}
 }
 
-func NewAuthMiddleWare(store sessions.Store) func(http.Handler) http.Handler {
+func NewMiddleWareTest() Middleware {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Print("MiddleWare Test Start")
+			defer fmt.Print("MiddleWare Test End")
+			h.ServeHTTP(w, r)
+		})
+	}
+}
+
+func NewMiddleWareLog() Middleware {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Print("MiddleWare Log Start")
+			defer fmt.Print("MiddleWare End End")
+			h.ServeHTTP(w, r)
+		})
+	}
+}
+
+func NewAuthMiddleWare(store sessions.Store) Middleware {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			h, ok := h.(*relay.Handler)
 			if !ok {
 				err := fmt.Errorf("Unknown http handler. expected 'relay.Handler', got %T", h)
 				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
+				h.ServeHTTP(w, r)
 			}
 
 			session, _ := store.Get(r, cookieName)
