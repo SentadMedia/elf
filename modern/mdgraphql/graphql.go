@@ -38,12 +38,13 @@ func (g GraphGophers) ListenAndServe(port int) error {
 }
 
 func NewGraphGophers(graphqlPath string, logger fw.Logger, tracer fw.Tracer, g fw.GraphQLAPI) fw.Server {
-	relayHandler := NewRelayHandler(g)
-	store := sessions.NewCookieStore(authKey, encryptionKey)
-	authHandler := NewAuthHandler(relayHandler, store)
+	rootHandler := NewRelayHandler(g)
+	sessionStore := sessions.NewCookieStore(authKey, encryptionKey)
+	authMiddleWare := NewAuthMiddleWare(sessionStore)
+	wrapped := MultipleMiddleware(rootHandler, authMiddleWare)
 
 	server := mdhttp.NewServer(logger, tracer)
-	server.HandleFunc(graphqlPath, authHandler)
+	server.HandleFunc(graphqlPath, wrapped)
 	server.HandleFunc("/graphql", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write(page) }))
 
 	return GraphGophers{
@@ -52,125 +53,89 @@ func NewGraphGophers(graphqlPath string, logger fw.Logger, tracer fw.Tracer, g f
 	}
 }
 
-var _ http.Handler = (*RelayHandler)(nil)
+var _ http.Handler = (*relay.Handler)(nil)
 
-type RelayHandler struct {
-	handler relay.Handler
-}
+// type RelayHandler struct {
+// 	handler relay.Handler
+// }
 
-func (r RelayHandler) ServeHTTP(writer http.ResponseWriter, reader *http.Request) {
-	r.handler.ServeHTTP(writer, reader)
-}
+// func (r RelayHandler) ServeHTTP(writer http.ResponseWriter, reader *http.Request) {
+// 	r.handler.ServeHTTP(writer, reader)
+// }
 
-func NewRelayHandler(g fw.GraphQLAPI) RelayHandler {
+// func NewRelayHandler(g fw.GraphQLAPI) RelayHandler {
+// 	schema := graphql.MustParseSchema(
+// 		g.GetSchema(),
+// 		g.GetResolver(),
+// 		graphql.UseStringDescriptions(),
+// 	)
+// 	return RelayHandler{
+// 		handler: relay.Handler{
+// 			Schema: schema,
+// 		},
+// 	}
+// }
+
+func NewRelayHandler(g fw.GraphQLAPI) http.Handler {
 	schema := graphql.MustParseSchema(
 		g.GetSchema(),
 		g.GetResolver(),
 		graphql.UseStringDescriptions(),
 	)
-	return RelayHandler{
-		handler: relay.Handler{
-			Schema: schema,
-		},
-	}
+	return &relay.Handler{schema}
 }
 
-var _ http.Handler = (*AuthHandler)(nil)
-
-type AuthHandler struct {
-	handler http.Handler
-}
-
-func (h AuthHandler) ServeHTTP(writer http.ResponseWriter, reader *http.Request) {
-	h.handler.ServeHTTP(writer, reader)
-}
-
-func NewAuthHandler(next RelayHandler, store sessions.Store) AuthHandler {
-	hander := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		session, _ := store.Get(r, cookieName)
-		fmt.Print(fmt.Sprintf("Session Before=%+v\n", session))
-		var params struct {
-			Query         string                 `json:"query"`
-			OperationName string                 `json:"operationName"`
-			Variables     map[string]interface{} `json:"variables"`
-		}
-
-		buf, _ := ioutil.ReadAll(r.Body)
-		bd1 := ioutil.NopCloser(bytes.NewBuffer(buf))
-		bd2 := ioutil.NopCloser(bytes.NewBuffer(buf))
-
-		if err := json.NewDecoder(bd1).Decode(&params); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if strings.HasPrefix(params.Query, "mutation") && strings.Contains(params.Query, "signIn") {
-			ctx := r.Context()
-			session.Values["authenticated"] = true
-			if err := session.Save(r, w); err != nil {
-				fmt.Print(fmt.Sprintf("ERROR Saving session. err=%s\n", err.Error()))
-			} else {
-				fmt.Print(fmt.Sprintf("Session After=%+v\n", session))
-			}
-			response := next.handler.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
-			responseJSON, err := json.Marshal(response)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+func NewAuthMiddleWare(store sessions.Store) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h, ok := h.(*relay.Handler)
+			if !ok {
+				err := fmt.Errorf("Unknown http handler. expected 'relay.Handler', got %T", h)
+				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			w.Write(responseJSON)
-			return
-		}
 
-		r.Body = bd2
-		next.ServeHTTP(w, r)
-	})
+			session, _ := store.Get(r, cookieName)
+			fmt.Print(fmt.Sprintf("Session Before=%+v\n", session))
+			var params struct {
+				Query         string                 `json:"query"`
+				OperationName string                 `json:"operationName"`
+				Variables     map[string]interface{} `json:"variables"`
+			}
 
-	return AuthHandler{hander}
+			buf, _ := ioutil.ReadAll(r.Body)
+			bd1 := ioutil.NopCloser(bytes.NewBuffer(buf))
+			bd2 := ioutil.NopCloser(bytes.NewBuffer(buf))
+
+			if err := json.NewDecoder(bd1).Decode(&params); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			if strings.HasPrefix(params.Query, "mutation") && strings.Contains(params.Query, "signIn") {
+				ctx := r.Context()
+				session.Values["authenticated"] = true
+				if err := session.Save(r, w); err != nil {
+					fmt.Print(fmt.Sprintf("ERROR Saving session. err=%s\n", err.Error()))
+				} else {
+					fmt.Print(fmt.Sprintf("Session After=%+v\n", session))
+				}
+				response := h.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
+				responseJSON, err := json.Marshal(response)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				w.Write(responseJSON)
+				return
+			}
+
+			r.Body = bd2
+			h.ServeHTTP(w, r)
+		})
+	}
+
 }
-
-// func middlewareOne(next RelayHandler) http.Handler {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		session, _ := store.Get(r, cookieName)
-// 		fmt.Print(fmt.Sprintf("Session Before=%+v\n", session))
-
-// 		var params struct {
-// 			Query         string                 `json:"query"`
-// 			OperationName string                 `json:"operationName"`
-// 			Variables     map[string]interface{} `json:"variables"`
-// 		}
-
-// 		buf, _ := ioutil.ReadAll(r.Body)
-// 		bd1 := ioutil.NopCloser(bytes.NewBuffer(buf))
-// 		bd2 := ioutil.NopCloser(bytes.NewBuffer(buf))
-
-// 		if err := json.NewDecoder(bd1).Decode(&params); err != nil {
-// 			http.Error(w, err.Error(), http.StatusBadRequest)
-// 			return
-// 		}
-
-// 		if strings.HasPrefix(params.Query, "mutation") && strings.Contains(params.Query, "signIn") {
-// 			ctx := r.Context()
-// 			session.Values["authenticated"] = true
-// 			if err := session.Save(r, w); err != nil {
-// 				fmt.Print(fmt.Sprintf("ERROR Saving session. err=%s\n", err.Error()))
-// 			} else {
-// 				fmt.Print(fmt.Sprintf("Session After=%+v\n", session))
-// 			}
-// 			response := next.handler.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
-// 			responseJSON, err := json.Marshal(response)
-// 			if err != nil {
-// 				http.Error(w, err.Error(), http.StatusInternalServerError)
-// 				return
-// 			}
-// 			w.Write(responseJSON)
-// 			return
-// 		}
-
-// 		r.Body = bd2
-// 		next.ServeHTTP(w, r)
-// 	})
-// }
 
 var page = []byte(`
 <!DOCTYPE html>
@@ -209,3 +174,22 @@ var page = []byte(`
 	</body>
 </html>
 `)
+
+type Middleware func(h http.Handler) http.Handler
+
+func MultipleMiddleware(h http.Handler, m ...Middleware) http.Handler {
+
+	if len(m) < 1 {
+		return h
+	}
+
+	wrapped := h
+
+	// loop in reverse to preserve middleware order
+	for i := len(m) - 1; i >= 0; i-- {
+		wrapped = m[i](wrapped)
+	}
+
+	return wrapped
+
+}
