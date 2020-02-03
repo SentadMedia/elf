@@ -21,7 +21,6 @@ var (
 	// key must be 16, 24 or 32 bytes long (AES-128, AES-192 or AES-256)
 	authKey       = []byte("CBD8DC165293A3F32084DACFF2B0D1522095AD3741919D82")
 	encryptionKey = []byte("A7A2F5A4707904314079C61EF6E49CEE")
-	store         = sessions.NewCookieStore(authKey, encryptionKey)
 	cookieName    = "SANTA_SESSION"
 )
 
@@ -39,10 +38,12 @@ func (g GraphGophers) ListenAndServe(port int) error {
 }
 
 func NewGraphGophers(graphqlPath string, logger fw.Logger, tracer fw.Tracer, g fw.GraphQLAPI) fw.Server {
-	relayHandler := NewRelayHandler(g, logger)
+	relayHandler := NewRelayHandler(g)
+	store := sessions.NewCookieStore(authKey, encryptionKey)
+	authHandler := NewAuthHandler(relayHandler, store)
 
 	server := mdhttp.NewServer(logger, tracer)
-	server.HandleFunc(graphqlPath, middlewareOne(relayHandler))
+	server.HandleFunc(graphqlPath, authHandler)
 	server.HandleFunc("/graphql", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write(page) }))
 
 	return GraphGophers{
@@ -61,7 +62,7 @@ func (r RelayHandler) ServeHTTP(writer http.ResponseWriter, reader *http.Request
 	r.handler.ServeHTTP(writer, reader)
 }
 
-func NewRelayHandler(g fw.GraphQLAPI, logger fw.Logger) RelayHandler {
+func NewRelayHandler(g fw.GraphQLAPI) RelayHandler {
 	schema := graphql.MustParseSchema(
 		g.GetSchema(),
 		g.GetResolver(),
@@ -74,11 +75,20 @@ func NewRelayHandler(g fw.GraphQLAPI, logger fw.Logger) RelayHandler {
 	}
 }
 
-func middlewareOne(next RelayHandler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+var _ http.Handler = (*AuthHandler)(nil)
+
+type AuthHandler struct {
+	handler http.Handler
+}
+
+func (h AuthHandler) ServeHTTP(writer http.ResponseWriter, reader *http.Request) {
+	h.handler.ServeHTTP(writer, reader)
+}
+
+func NewAuthHandler(next RelayHandler, store sessions.Store) AuthHandler {
+	hander := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, _ := store.Get(r, cookieName)
 		fmt.Print(fmt.Sprintf("Session Before=%+v\n", session))
-
 		var params struct {
 			Query         string                 `json:"query"`
 			OperationName string                 `json:"operationName"`
@@ -115,7 +125,52 @@ func middlewareOne(next RelayHandler) http.Handler {
 		r.Body = bd2
 		next.ServeHTTP(w, r)
 	})
+
+	return AuthHandler{hander}
 }
+
+// func middlewareOne(next RelayHandler) http.Handler {
+// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		session, _ := store.Get(r, cookieName)
+// 		fmt.Print(fmt.Sprintf("Session Before=%+v\n", session))
+
+// 		var params struct {
+// 			Query         string                 `json:"query"`
+// 			OperationName string                 `json:"operationName"`
+// 			Variables     map[string]interface{} `json:"variables"`
+// 		}
+
+// 		buf, _ := ioutil.ReadAll(r.Body)
+// 		bd1 := ioutil.NopCloser(bytes.NewBuffer(buf))
+// 		bd2 := ioutil.NopCloser(bytes.NewBuffer(buf))
+
+// 		if err := json.NewDecoder(bd1).Decode(&params); err != nil {
+// 			http.Error(w, err.Error(), http.StatusBadRequest)
+// 			return
+// 		}
+
+// 		if strings.HasPrefix(params.Query, "mutation") && strings.Contains(params.Query, "signIn") {
+// 			ctx := r.Context()
+// 			session.Values["authenticated"] = true
+// 			if err := session.Save(r, w); err != nil {
+// 				fmt.Print(fmt.Sprintf("ERROR Saving session. err=%s\n", err.Error()))
+// 			} else {
+// 				fmt.Print(fmt.Sprintf("Session After=%+v\n", session))
+// 			}
+// 			response := next.handler.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
+// 			responseJSON, err := json.Marshal(response)
+// 			if err != nil {
+// 				http.Error(w, err.Error(), http.StatusInternalServerError)
+// 				return
+// 			}
+// 			w.Write(responseJSON)
+// 			return
+// 		}
+
+// 		r.Body = bd2
+// 		next.ServeHTTP(w, r)
+// 	})
+// }
 
 var page = []byte(`
 <!DOCTYPE html>
