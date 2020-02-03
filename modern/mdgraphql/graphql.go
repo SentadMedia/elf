@@ -73,7 +73,6 @@ func NewMiddleWareLog(logger fw.Logger) Middleware {
 				logger.Debug(fmt.Sprintf("HTTP: url=%s host=%s client=%s method=%s", r.URL, r.Host, mdhttp.GetClientIP(r), r.Method))
 			})
 			h.ServeHTTP(w, r)
-			logger.Debug(fmt.Sprintf("Response object=%+v", w))
 		})
 	}
 }
@@ -83,7 +82,7 @@ func NewAuthMiddleWare(store sessions.Store, logger fw.Logger) Middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			relayHandler, ok := handler.(*relay.Handler)
 			if !ok {
-				logger.Warn(fmt.Sprintf("Skipping! Unknown http handler. expected '*relay.Handler', got %T", handler))
+				logger.Warn(fmt.Sprintf("Skipping! Unknown http handler. expected '*relay.Handler', got %T (%+v)", handler, handler))
 				handler.ServeHTTP(w, r)
 				return
 			}
