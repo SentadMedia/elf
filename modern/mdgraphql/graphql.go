@@ -39,9 +39,14 @@ func (g GraphGophers) ListenAndServe(port int) error {
 }
 
 func NewGraphGophers(graphqlPath string, logger fw.Logger, tracer fw.Tracer, g fw.GraphQLAPI) fw.Server {
-	rootHandler := NewRelayHandler(g)
+	schema := graphql.MustParseSchema(
+		g.GetSchema(),
+		g.GetResolver(),
+		graphql.UseStringDescriptions(),
+	)
+	rootHandler := NewRelayHandler(schema)
 	sessionStore := sessions.NewCookieStore(authKey, encryptionKey)
-	authMiddleWare := NewAuthMiddleWare(sessionStore, logger)
+	authMiddleWare := NewAuthMiddleWare(schema, sessionStore, logger)
 	logMiddleWare := NewMiddleWareLog(logger)
 	wrapped := MultipleMiddleware(rootHandler, authMiddleWare, logMiddleWare)
 
@@ -66,12 +71,12 @@ func (r RelayHandler) ServeHTTP(writer http.ResponseWriter, reader *http.Request
 	r.handler.ServeHTTP(writer, reader)
 }
 
-func NewRelayHandler(g fw.GraphQLAPI) http.Handler {
-	schema := graphql.MustParseSchema(
-		g.GetSchema(),
-		g.GetResolver(),
-		graphql.UseStringDescriptions(),
-	)
+func NewRelayHandler(schema *graphql.Schema) http.Handler {
+	// schema := graphql.MustParseSchema(
+	// 	g.GetSchema(),
+	// 	g.GetResolver(),
+	// 	graphql.UseStringDescriptions(),
+	// )
 	return RelayHandler{handler: relay.Handler{
 		Schema: schema,
 	}}
@@ -88,18 +93,16 @@ func NewMiddleWareLog(logger fw.Logger) Middleware {
 	}
 }
 
-func NewAuthMiddleWare(store sessions.Store, logger fw.Logger) Middleware {
+func NewAuthMiddleWare(schema *graphql.Schema, store sessions.Store, logger fw.Logger) Middleware {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			relayHandler := handler.(RelayHandler)
+			// relayHandler := handler.(RelayHandler)
 			// if !ok {
 			// 	handler.ServeHTTP(w, r)
 			// 	return
 			// }
-			logger.Warn(fmt.Sprintf("Skipping! Unknown http handler. got %T", relayHandler))
+			// logger.Warn(fmt.Sprintf("Skipping! Unknown http handler. got %T", relayHandler))
 
-			session, _ := store.Get(r, cookieName)
-			logger.Debug(fmt.Sprintf("Session Before=%+v", session))
 			var params struct {
 				Query         string                 `json:"query"`
 				OperationName string                 `json:"operationName"`
@@ -107,16 +110,16 @@ func NewAuthMiddleWare(store sessions.Store, logger fw.Logger) Middleware {
 			}
 
 			buf, _ := ioutil.ReadAll(r.Body)
-			bd1 := ioutil.NopCloser(bytes.NewBuffer(buf))
-			bd2 := ioutil.NopCloser(bytes.NewBuffer(buf))
 
-			if err := json.NewDecoder(bd1).Decode(&params); err != nil {
+			if err := json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(buf))).Decode(&params); err != nil {
 				logger.Error(fmt.Errorf("Unable to decode request body (%s)", err))
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
 			if strings.HasPrefix(params.Query, "mutation") && strings.Contains(params.Query, "signIn") {
+				session, _ := store.Get(r, cookieName)
+				logger.Debug(fmt.Sprintf("Session Before=%+v", session))
 				ctx := r.Context()
 				session.Values["authenticated"] = true
 				if err := session.Save(r, w); err != nil {
@@ -124,7 +127,7 @@ func NewAuthMiddleWare(store sessions.Store, logger fw.Logger) Middleware {
 				} else {
 					logger.Debug(fmt.Sprintf("Session After=%+v", session))
 				}
-				response := relayHandler.handler.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
+				response := schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
 				responseJSON, err := json.Marshal(response)
 				if err != nil {
 					logger.Error(err)
@@ -134,9 +137,8 @@ func NewAuthMiddleWare(store sessions.Store, logger fw.Logger) Middleware {
 				w.Write(responseJSON)
 				return
 			}
-
-			r.Body = bd2
-			relayHandler.ServeHTTP(w, r)
+			r.Body = ioutil.NopCloser(bytes.NewBuffer(buf))
+			handler.ServeHTTP(w, r)
 		})
 	}
 
