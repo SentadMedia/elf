@@ -66,7 +66,7 @@ func (r RelayHandler) ServeHTTP(writer http.ResponseWriter, reader *http.Request
 	r.handler.ServeHTTP(writer, reader)
 }
 
-func NewRelayHandler(g fw.GraphQLAPI) RelayHandler {
+func NewRelayHandler(g fw.GraphQLAPI) http.Handler {
 	schema := graphql.MustParseSchema(
 		g.GetSchema(),
 		g.GetResolver(),
@@ -91,9 +91,9 @@ func NewMiddleWareLog(logger fw.Logger) Middleware {
 func NewAuthMiddleWare(store sessions.Store, logger fw.Logger) Middleware {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			relayHandler, ok := handler.(RelayHandler)
+			relayHandler, ok := handler.(*RelayHandler)
 			if !ok {
-				logger.Warn(fmt.Sprintf("Skipping! Unknown http handler. expected '*relay.Handler', got %T (%+v)", relayHandler, handler))
+				logger.Warn(fmt.Sprintf("Skipping! Unknown http handler. got %T", relayHandler))
 				handler.ServeHTTP(w, r)
 				return
 			}
