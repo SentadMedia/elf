@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/sentadmedia/elf/fw"
-	"github.com/sentadmedia/elf/modern/mdio"
 )
 
 type Server struct {
@@ -42,9 +41,6 @@ func (s Server) HandleFunc(pattern string, handler http.Handler) {
 		}
 
 		w = enableCors(w)
-		r.Body = mdio.Tap(r.Body, func(body string) {
-			s.logger.Debug(fmt.Sprintf("HTTP: url=%s host=%s client=%s method=%s", r.URL, r.Host, GetClientIP(r), r.Method))
-		})
 		handler.ServeHTTP(w, r)
 	})
 }

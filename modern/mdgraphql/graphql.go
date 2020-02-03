@@ -13,6 +13,7 @@ import (
 	"github.com/graph-gophers/graphql-go/relay"
 	"github.com/sentadmedia/elf/fw"
 	"github.com/sentadmedia/elf/modern/mdhttp"
+	"github.com/sentadmedia/elf/modern/mdio"
 )
 
 var _ fw.Server = (*GraphGophers)(nil)
@@ -40,10 +41,9 @@ func (g GraphGophers) ListenAndServe(port int) error {
 func NewGraphGophers(graphqlPath string, logger fw.Logger, tracer fw.Tracer, g fw.GraphQLAPI) fw.Server {
 	rootHandler := NewRelayHandler(g)
 	sessionStore := sessions.NewCookieStore(authKey, encryptionKey)
-	authMiddleWare := NewAuthMiddleWare(sessionStore)
-	testMiddleWare := NewMiddleWareTest()
-	logMiddleWare := NewMiddleWareLog()
-	wrapped := MultipleMiddleware(rootHandler, testMiddleWare, authMiddleWare, logMiddleWare)
+	authMiddleWare := NewAuthMiddleWare(sessionStore, logger)
+	logMiddleWare := NewMiddleWareLog(logger)
+	wrapped := MultipleMiddleware(rootHandler, authMiddleWare, logMiddleWare)
 
 	server := mdhttp.NewServer(logger, tracer)
 	server.HandleFunc(graphqlPath, wrapped)
@@ -57,69 +57,39 @@ func NewGraphGophers(graphqlPath string, logger fw.Logger, tracer fw.Tracer, g f
 
 var _ http.Handler = (*relay.Handler)(nil)
 
-// type RelayHandler struct {
-// 	handler relay.Handler
-// }
-
-// func (r RelayHandler) ServeHTTP(writer http.ResponseWriter, reader *http.Request) {
-// 	r.handler.ServeHTTP(writer, reader)
-// }
-
-// func NewRelayHandler(g fw.GraphQLAPI) RelayHandler {
-// 	schema := graphql.MustParseSchema(
-// 		g.GetSchema(),
-// 		g.GetResolver(),
-// 		graphql.UseStringDescriptions(),
-// 	)
-// 	return RelayHandler{
-// 		handler: relay.Handler{
-// 			Schema: schema,
-// 		},
-// 	}
-// }
-
 func NewRelayHandler(g fw.GraphQLAPI) http.Handler {
 	schema := graphql.MustParseSchema(
 		g.GetSchema(),
 		g.GetResolver(),
 		graphql.UseStringDescriptions(),
 	)
-	return &relay.Handler{schema}
+	return &relay.Handler{Schema: schema}
 }
 
-func NewMiddleWareTest() Middleware {
+func NewMiddleWareLog(logger fw.Logger) Middleware {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Print("MiddleWare Test Start\n")
-			defer fmt.Print("MiddleWare Test End\n")
+			r.Body = mdio.Tap(r.Body, func(body string) {
+				logger.Debug(fmt.Sprintf("HTTP: url=%s host=%s client=%s method=%s", r.URL, r.Host, mdhttp.GetClientIP(r), r.Method))
+			})
 			h.ServeHTTP(w, r)
+			logger.Debug(fmt.Sprintf("Response object=%+v", w))
 		})
 	}
 }
 
-func NewMiddleWareLog() Middleware {
-	return func(h http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Print("MiddleWare Log Start\n")
-			defer fmt.Print("MiddleWare Log End\n")
-			h.ServeHTTP(w, r)
-		})
-	}
-}
-
-func NewAuthMiddleWare(store sessions.Store) Middleware {
+func NewAuthMiddleWare(store sessions.Store, logger fw.Logger) Middleware {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			relayHandler, ok := handler.(*relay.Handler)
 			if !ok {
-				fmt.Printf("Unknown http handler. expected 'relay.Handler', got %T\n", handler)
-				// http.Error(w, err.Error(), http.StatusBadRequest)
+				logger.Warn(fmt.Sprintf("Skipping! Unknown http handler. expected '*relay.Handler', got %T", handler))
 				handler.ServeHTTP(w, r)
 				return
 			}
 
 			session, _ := store.Get(r, cookieName)
-			fmt.Print(fmt.Sprintf("Session Before=%+v\n", session))
+			logger.Debug(fmt.Sprintf("Session Before=%+v", session))
 			var params struct {
 				Query         string                 `json:"query"`
 				OperationName string                 `json:"operationName"`
@@ -131,6 +101,7 @@ func NewAuthMiddleWare(store sessions.Store) Middleware {
 			bd2 := ioutil.NopCloser(bytes.NewBuffer(buf))
 
 			if err := json.NewDecoder(bd1).Decode(&params); err != nil {
+				logger.Error(fmt.Errorf("Unable to decode request body (%s)", err))
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -139,13 +110,14 @@ func NewAuthMiddleWare(store sessions.Store) Middleware {
 				ctx := r.Context()
 				session.Values["authenticated"] = true
 				if err := session.Save(r, w); err != nil {
-					fmt.Print(fmt.Sprintf("ERROR Saving session. err=%s\n", err.Error()))
+					logger.Error(fmt.Errorf("Unable to save session. (%s)", err))
 				} else {
-					fmt.Print(fmt.Sprintf("Session After=%+v\n", session))
+					logger.Debug(fmt.Sprintf("Session After=%+v", session))
 				}
 				response := relayHandler.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
 				responseJSON, err := json.Marshal(response)
 				if err != nil {
+					logger.Error(err)
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
