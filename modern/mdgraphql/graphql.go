@@ -55,15 +55,26 @@ func NewGraphGophers(graphqlPath string, logger fw.Logger, tracer fw.Tracer, g f
 	}
 }
 
-var _ http.Handler = (*relay.Handler)(nil)
+// var _ http.Handler = (*relay.Handler)(nil)
+var _ http.Handler = (*RelayHandler)(nil)
 
-func NewRelayHandler(g fw.GraphQLAPI) http.Handler {
+type RelayHandler struct {
+	handler relay.Handler
+}
+
+func (r RelayHandler) ServeHTTP(writer http.ResponseWriter, reader *http.Request) {
+	r.handler.ServeHTTP(writer, reader)
+}
+
+func NewRelayHandler(g fw.GraphQLAPI) RelayHandler {
 	schema := graphql.MustParseSchema(
 		g.GetSchema(),
 		g.GetResolver(),
 		graphql.UseStringDescriptions(),
 	)
-	return &relay.Handler{Schema: schema}
+	return RelayHandler{handler: relay.Handler{
+		Schema: schema,
+	}}
 }
 
 func NewMiddleWareLog(logger fw.Logger) Middleware {
@@ -80,7 +91,7 @@ func NewMiddleWareLog(logger fw.Logger) Middleware {
 func NewAuthMiddleWare(store sessions.Store, logger fw.Logger) Middleware {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			relayHandler := *handler.(*relay.Handler)
+			relayHandler := handler.(RelayHandler)
 			// if !ok {
 			// 	handler.ServeHTTP(w, r)
 			// 	return
@@ -113,7 +124,7 @@ func NewAuthMiddleWare(store sessions.Store, logger fw.Logger) Middleware {
 				} else {
 					logger.Debug(fmt.Sprintf("Session After=%+v", session))
 				}
-				response := relayHandler.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
+				response := relayHandler.handler.Schema.Exec(ctx, params.Query, params.OperationName, params.Variables)
 				responseJSON, err := json.Marshal(response)
 				if err != nil {
 					logger.Error(err)
