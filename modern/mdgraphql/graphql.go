@@ -90,8 +90,8 @@ func NewRelayHandler(g fw.GraphQLAPI) http.Handler {
 func NewMiddleWareTest() Middleware {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Print("MiddleWare Test Start")
-			defer fmt.Print("MiddleWare Test End")
+			fmt.Print("MiddleWare Test Star\nt")
+			defer fmt.Print("MiddleWare Test End\n")
 			h.ServeHTTP(w, r)
 		})
 	}
@@ -100,8 +100,8 @@ func NewMiddleWareTest() Middleware {
 func NewMiddleWareLog() Middleware {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Print("MiddleWare Log Start")
-			defer fmt.Print("MiddleWare End End")
+			fmt.Print("MiddleWare Log Start\n")
+			defer fmt.Print("MiddleWare Log End\n")
 			h.ServeHTTP(w, r)
 		})
 	}
@@ -112,9 +112,10 @@ func NewAuthMiddleWare(store sessions.Store) Middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			h, ok := h.(*relay.Handler)
 			if !ok {
-				err := fmt.Errorf("Unknown http handler. expected 'relay.Handler', got %T", h)
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				fmt.Printf("Unknown http handler. expected 'relay.Handler', got %T\n", h)
+				// http.Error(w, err.Error(), http.StatusBadRequest)
 				h.ServeHTTP(w, r)
+				return
 			}
 
 			session, _ := store.Get(r, cookieName)
