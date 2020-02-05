@@ -1,5 +1,10 @@
 package fw
 
+import "net/http"
+
+type GraphQlPath string
+type RelayHandler http.Handler
+
 type Resolver interface{}
 
 type GraphQLAPI interface {
@@ -15,7 +20,7 @@ type GraphQLScalar interface {
 
 type GraphiQlConfig struct {
 	Include bool
-	Path    string
+	Path    GraphQlPath
 	Page    []byte
 }
 
