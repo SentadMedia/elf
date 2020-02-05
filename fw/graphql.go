@@ -20,12 +20,12 @@ type GraphQLScalar interface {
 
 type GraphiQlConfig struct {
 	Include bool
-	Path    GraphQlPath
+	Path    string
 	Page    []byte
 }
 
 type GraphGopherConfig struct {
-	GraphqlPath string
+	GraphqlPath GraphQlPath
 	G           GraphQLAPI
 	Graphiql    GraphiQlConfig
 }
