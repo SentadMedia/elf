@@ -32,7 +32,7 @@ func NewGraphGophers(config fw.GraphGopherConfig, handler http.Handler, logger f
 	server := mdhttp.NewServer(logger, tracer)
 	server.HandleFunc(config.GraphqlPath, handler)
 	if config.Graphiql.Include {
-		server.HandleFunc(config.Graphiql.Path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write(config.Graphiql.Page) }))
+		server.HandleFunc(string(config.Graphiql.Path), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write(config.Graphiql.Page) }))
 	}
 	return GraphGophers{
 		logger: logger,
