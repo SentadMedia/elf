@@ -30,7 +30,7 @@ func (g GraphGophers) ListenAndServe(port int) error {
 
 func NewGraphGophers(config fw.GraphGopherConfig, handler http.Handler, logger fw.Logger, tracer fw.Tracer) fw.Server {
 	server := mdhttp.NewServer(logger, tracer)
-	server.HandleFunc(config.GraphqlPath, handler)
+	server.HandleFunc(string(config.GraphqlPath), handler)
 	if config.Graphiql.Include {
 		server.HandleFunc(string(config.Graphiql.Path), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write(config.Graphiql.Page) }))
 	}
