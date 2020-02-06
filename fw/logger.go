@@ -30,4 +30,10 @@ type Logger interface {
 	Info(message string)
 	Debug(message string)
 	Trace(message string)
+	Fatalf(message string)
+	Errorf(message string)
+	Warnf(message string)
+	Infof(message string)
+	Debugf(message string)
+	Tracef(message string)
 }
