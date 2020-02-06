@@ -37,11 +37,19 @@ func (local Local) Fatal(message string) {
 	local.log(fw.LogFatalName, message)
 }
 
+func (local Local) Fatalf(message string, a ...interface{}) {
+	local.Fatal(fmt.Sprintf(message, a...))
+}
+
 func (local Local) Error(err error) {
 	if local.levelAbove(fw.LogError) {
 		return
 	}
 	local.log(fw.LogErrorName, fmt.Sprintf("%v", err))
+}
+
+func (local Local) Errorf(message string, a ...interface{}) {
+	local.Error(fmt.Errorf(message, a...))
 }
 
 func (local Local) Warn(message string) {
@@ -51,11 +59,19 @@ func (local Local) Warn(message string) {
 	local.log(fw.LogWarnName, message)
 }
 
+func (local Local) Warnf(message string, a ...interface{}) {
+	local.Warn(fmt.Sprintf(message, a...))
+}
+
 func (local Local) Info(message string) {
 	if local.levelAbove(fw.LogInfo) {
 		return
 	}
 	local.log(fw.LogInfoName, message)
+}
+
+func (local Local) Infof(message string, a ...interface{}) {
+	local.Info(fmt.Sprintf(message, a...))
 }
 
 func (local Local) Debug(message string) {
@@ -65,11 +81,19 @@ func (local Local) Debug(message string) {
 	local.log(fw.LogDebugName, message)
 }
 
+func (local Local) Debugf(message string, a ...interface{}) {
+	local.Debug(fmt.Sprintf(message, a...))
+}
+
 func (local Local) Trace(message string) {
 	if local.levelAbove(fw.LogTrace) {
 		return
 	}
 	local.log(fw.LogTraceName, message)
+}
+
+func (local Local) Tracef(message string, a ...interface{}) {
+	local.Trace(fmt.Sprintf(message, a...))
 }
 
 func (local Local) log(level fw.LogLevelName, message string) {
@@ -92,7 +116,7 @@ func (local Local) log(level fw.LogLevelName, message string) {
 	_, _ = fmt.Fprintf(
 		local.stdout,
 		// "[%s] [%s] %s line %d at %s %s\n",
-		"[%s] [%s] %s %s\n",
+		"[%s] [%s] [%s] %s\n",
 		local.prefix,
 		level,
 		now,

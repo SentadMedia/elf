@@ -9,12 +9,6 @@ import (
 
 var _ fw.Server = (*GraphGophers)(nil)
 
-var (
-	authKey       = []byte("CBD8DC165293A3F32084DACFF2B0D1522095AD3741919D82")
-	encryptionKey = []byte("A7A2F5A4707904314079C61EF6E49CEE")
-	cookieName    = "SANTA_SESSION"
-)
-
 type GraphGophers struct {
 	logger fw.Logger
 	server fw.Server
