@@ -1,7 +1,7 @@
 package fw
 
-type contextKey string
+type ContextKey string
 
-func (c contextKey) String() string {
+func (c ContextKey) String() string {
 	return string(c)
 }
